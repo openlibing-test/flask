@@ -1,8 +1,11 @@
 name: pre-commit
+# Original triggers preserved; manual-only for test cost control.
+# on:
+#   pull_request:
+#   push:
+#     branches: [main, stable]
 on:
-  pull_request:
-  push:
-    branches: [main, stable]
+  workflow_dispatch:
 permissions: {}
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
