@@ -1,10 +1,13 @@
 name: Tests
+# Original triggers preserved; manual-only for test cost control.
+# on:
+#   push:
+#     branches: [main, stable]
+#     paths-ignore: ['docs/**', '*.md', '*.rst']
+#   pull_request:
+#     paths-ignore: [ 'docs/**', '*.md', '*.rst' ]
 on:
-  push:
-    branches: [main, stable]
-    paths-ignore: ['docs/**', '*.md', '*.rst']
-  pull_request:
-    paths-ignore: [ 'docs/**', '*.md', '*.rst' ]
+  workflow_dispatch:
 jobs:
   tests:
     name: ${{ matrix.name || matrix.python }}
