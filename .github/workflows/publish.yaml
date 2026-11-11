@@ -1,7 +1,10 @@
 name: Publish
+# Original triggers preserved; manual-only for test cost control.
+# on:
+#   push:
+#     tags: ['*']
 on:
-  push:
-    tags: ['*']
+  workflow_dispatch:
 permissions: {}
 concurrency:
   group: publish-${{ github.event.push.ref }}

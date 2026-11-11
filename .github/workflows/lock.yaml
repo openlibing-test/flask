@@ -4,9 +4,12 @@ name: Lock inactive closed issues
 # respond to new issues with fresh examples rather than continuing discussions
 # on old issues.
 
+# Original triggers preserved; manual-only for test cost control.
+# on:
+#   schedule:
+#     - cron: '0 0 * * *'
 on:
-  schedule:
-    - cron: '0 0 * * *'
+  workflow_dispatch:
 permissions: {}
 concurrency:
   group: lock
