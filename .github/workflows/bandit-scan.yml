@@ -1,0 +1,74 @@
+name: Bandit documentation verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [validation/bandit-docs]
+    paths:
+      - .github/workflows/bandit-scan.yml
+      - .github/bandit/**
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install documented Bandit version
+        run: |
+          python3 -m pip install 'bandit[sarif]==1.9.4'
+          mkdir -p bandit-evidence
+          python3 -m pip freeze > bandit-evidence/packages.txt
+      - name: Run documented full scan
+        id: scan
+        run: |
+          rc=0
+          python3 -m bandit -r . -f sarif -o bandit-report.sarif || rc=$?
+          echo "$rc" > bandit-evidence/scan-exit-code.txt
+          if [ "$rc" -gt 1 ]; then
+            echo "::error::Bandit execution error: $rc"
+            exit "$rc"
+          fi
+          echo "Bandit exit $rc (0=clean, 1=findings; non-blocking)." >> "$GITHUB_STEP_SUMMARY"
+          cp bandit-report.sarif bandit-evidence/before-upload.sarif
+      - name: Validate SARIF and source locations
+        id: verify
+        run: python3 .github/bandit/verify-sarif.py before
+      - name: Check private action credential availability
+        env:
+          PRIVATE_ACTIONS_READ_TOKEN: ${{ secrets.PRIVATE_ACTIONS_READ_TOKEN }}
+        run: test -n "$PRIVATE_ACTIONS_READ_TOKEN" || { echo '::error::Organization Secret PRIVATE_ACTIONS_READ_TOKEN unavailable'; exit 1; }
+      - name: Checkout private uploader after scanning
+        uses: actions/checkout@v4
+        with:
+          repository: openlibing-test/upload-sarif-action
+          ref: 05d5ea9e9f9a76497022ccab322f6dc22d827820
+          token: ${{ secrets.PRIVATE_ACTIONS_READ_TOKEN }}
+          path: .private-actions/upload-sarif-action
+          persist-credentials: false
+      - name: Upload SARIF to openLiBing beta
+        if: ${{ !cancelled() && success() && steps.verify.outcome == 'success' }}
+        uses: ./.private-actions/upload-sarif-action
+        with:
+          sarif_file: bandit-report.sarif
+          source_path: .
+          env_type: beta
+      - name: Verify report after upload
+        run: python3 .github/bandit/verify-sarif.py after
+      - name: Preserve verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-verification
+          path: |
+            bandit-report.sarif
+            bandit-evidence/
+          if-no-files-found: warn
